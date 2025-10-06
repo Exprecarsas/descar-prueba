@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Unidades Escaneadas</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+    <!-- Incluye la librería de FontAwesome en el head para los íconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#cc414d">
+</head>
+
+<body>
+
+
+    <div id="main-content">
+        <div id="logo-exprecar" align="left">
+            <img src="LOGO EXPRECAR2.png" width="130" height="50" alt="logo">
+        </div>
+        <div>
+            <img src="somos de aqui.png" width="120" height="120" alt="LOGO">
+        </div>
+        <div>
+            <h1>Escaneo de Unidades</h1>
+            <div id="cliente-cargado"
+                style="margin: 10px auto; max-width: 600px; font-size: 1.1em; padding: 10px 15px; background-color: #e9f7ef; color: #2e7d32; border-left: 5px solid #2e7d32; border-radius: 5px; display: none;">
+                📦 Cliente cargado:
+            </div>
+
+            <h2 id="global-counter">Unidades descargadas: 0 de 0 </h2>
+        </div>
+    </div>
+    <select id="archivo-select">
+        <option value="">Selecciona cliente</option>
+        <option value="1DY82Dx49ehXjKZIjaqOguDmw2RdStrn5FYWKMhKOpcs">Proeslog</option>
+        <option value="1ABlzwMok8OtUalC8XHTFL23EuQqTnC0OmQF9IRMpWWc">Proeslog tercero</option>
+        <option value="1dPcvhtF0CcS_PbkmMu89FYvi0kq6u69NAxvxnRZhPD4">transprensa</option>
+        <option value="1EYco4I9lTHovBDaYUk8iZjKWbdbfLqFCOPPWa9a09Bo">tercero</option>
+    </select>
+    <button id="cargar-desde-drive">Cargar informe</button>
+
+
+    <!-- Campo de entrada para escanear código de barras -->
+    <input type="text" id="barcodeInput" placeholder="Escanea el código de barras aquí...">
+    <button id="start-scanning">Iniciar Escaneo</button>
+
+    <div>
+        <!-- Botón de la cámara en la parte superior derecha -->
+        <button id="btn-abrir-camara" style="display: none; position: absolute; top: 10px; right: 10px; z-index: 1000;">
+            <img src="https://images.vexels.com/content/157862/preview/barcode-scanning-icon-1c9119.png" alt="Cámara" />
+        </button>
+    </div>
+
+    <h2>Unidades Escaneadas</h2>
+    <ul id="scanned-list"></ul>
+
+    <!-- Botón de generar reporte con icono de descarga -->
+    <button id="finalizar-descarga" class="btn-generar-reporte"
+        style="position: absolute; top: 10px; right: 10px; z-index: 1000;"> Descargar
+        <i class="fas fa-download"></i> <!-- Ícono de descarga -->
+    </button>
+    <button id="terminar-proceso">Terminar Proceso</button>
+    </div>
+
+
+    <!-- Contenedor del escáner de códigos de barras -->
+    <div id="scanner-container" style="display: none;">
+        <div id="scanner-video" style="width: 100%; max-width: 600px; height: 400px;"></div>
+        <!-- Contenedor para el cuadro de enfoque dinámico -->
+        <div id="focus-box"></div>
+
+        <!-- Botón para cerrar el escáner -->
+        <button id="close-scanner" style="position: absolute; top: 10px; right: 10px; z-index: 10000;">
+            Cerrar
+        </button>
+        <!-- Contador global del escáner -->
+        <h2 id="global-counter-scanner">Unidades descargadas: 0 de 0 </h2>
+    </div>
+
+    <!-- Contenedor para mostrar el resultado temporal (check de éxito o error) -->
+    <div id="scan-result"
+        style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; background: rgba(0, 0, 0, 0.75); color: #fff; padding: 20px; border-radius: 50%;">
+        <span id="result-icon" style="font-size: 48px;"></span>
+    </div>
+
+    <!-- Modal para ingresar datos adicionales -->
+    <div id="modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>Información de la Descarga</h3>
+            <input type="text" id="placa" placeholder="Placa de Vehículo">
+            <input type="text" id="remitente" placeholder="Remitente">
+            <input type="text" id="fecha" disabled>
+            <button id="generar-reporte" style="background-color: #4CAF50; color: white; margin-top: 10px;"> Generar
+                Reporte
+                <i class="fas fa-file-excel"></i>
+            </button>
+            <button id="cerrar-modal" style="background-color: #cc414d; color: white; margin-top: 10px;">Cerrar</button>
+            <!-- Botón de cierre -->
+        </div>
+    </div>
+
+    <!-- Incluye las bibliotecas necesarias -->
+    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode/minified/html5-qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
+    <script src="app.js"></script>
+    <!-- Tu contenido de la aplicación -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/Descarg/sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registrado con éxito: ', registration);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker no se pudo registrar: ', error);
+                    });
+            });
+        }
+    </script>
+
+</body>
+
+</html>
