@@ -8,8 +8,7 @@
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
   <!-- Íconos -->
-  <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#cc414d">
 </head>
@@ -26,7 +25,7 @@
       <h1>Escaneo de Unidades</h1>
 
       <div id="cliente-cargado"
-           style="margin: 10px auto; max-width: 600px; font-size: 1.1em; padding: 10px 15px; background-color: #e9f7ef; color: #2e7d32; border-left: 5px solid #2e7d32; border-radius: 5px; display: none;">
+        style="margin: 10px auto; max-width: 600px; font-size: 1.1em; padding: 10px 15px; background-color: #e9f7ef; color: #2e7d32; border-left: 5px solid #2e7d32; border-radius: 5px; display: none;">
         📦 Cliente cargado:
       </div>
 
@@ -53,7 +52,7 @@
 
   <!-- Enviar (abre modal) -->
   <button id="finalizar-descarga" class="btn-generar-reporte"
-          style="position: absolute; top: 10px; right: 10px; z-index: 1000;">
+    style="position: absolute; top: 10px; right: 10px; z-index: 1000;">
     Enviar <i class="fas fa-paper-plane"></i>
   </button>
 
@@ -71,7 +70,7 @@
 
   <!-- Feedback de escaneo -->
   <div id="scan-result"
-       style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; background: rgba(0, 0, 0, 0.75); color: #fff; padding: 20px; border-radius: 50%;">
+    style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; background: rgba(0, 0, 0, 0.75); color: #fff; padding: 20px; border-radius: 50%;">
     <span id="result-icon" style="font-size: 48px;"></span>
   </div>
 
@@ -79,6 +78,21 @@
   <div id="modal" class="modal" style="display: none;">
     <div class="modal-content">
       <h3>Información de la Descarga</h3>
+      <div class="campo">
+        <label for="sede">Sede / Punto de descargue</label>
+        <select id="sede">
+          <option value="">Selecciona una sede...</option>
+          <option value="Bucaramanga">Bucaramanga</option>
+          <option value="Cúcuta">Cúcuta</option>
+          <option value="Bogotá">Bogotá</option>
+          <option value="Girón">Girón</option>
+          <!-- agrega las sedes que necesites -->
+        </select>
+      </div>
+
+      <!-- (Opcional) mostrar sede activa -->
+      <div id="sede-activa" style="margin-top:8px;font-weight:bold;"></div>
+
       <input type="text" id="placa" placeholder="Placa de Vehículo">
       <input type="text" id="remitente" placeholder="Remitente">
       <input type="text" id="fecha" disabled>
@@ -107,4 +121,5 @@
     }
   </script>
 </body>
+
 </html>
