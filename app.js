@@ -1,6 +1,8 @@
 document.addEventListener('DOMContentLoaded', function () {
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxviDpRACUW8GMp3HfsIznOJCbXLcCIXI3qvjL-PcYZLYnIRbRAwcpMpLq1JSPfJfJ_dQ/exec'; // <-- tu /exec
   const TIPO_FIJO = 'DESCARGUE';
+  const SEDE_STORAGE_KEY = 'sede_descargue_actual';
+
 
   let products = [];            // desde CSV de Drive
   let scannedUnits = {};        // contador por código_barra
@@ -17,7 +19,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function initializeAudioContext() {
     if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
   }
-  function playTone(freq, dur, type='sine', vol=1.0) {
+  function playTone(freq, dur, type = 'sine', vol = 1.0) {
     try {
       if (!audioContext) initializeAudioContext();
       const osc = audioContext.createOscillator();
@@ -25,8 +27,8 @@ document.addEventListener('DOMContentLoaded', function () {
       osc.type = type; osc.frequency.setValueAtTime(freq, audioContext.currentTime);
       gain.gain.value = vol;
       osc.connect(gain); gain.connect(audioContext.destination);
-      osc.start(); setTimeout(()=>osc.stop(), dur);
-    } catch(e) {}
+      osc.start(); setTimeout(() => osc.stop(), dur);
+    } catch (e) { }
   }
   document.body.addEventListener('click', initializeAudioContext, { once: true });
 
@@ -54,9 +56,36 @@ document.addEventListener('DOMContentLoaded', function () {
       codigosIncorrectos = d.codigosIncorrectos || [];
       updateScannedList();
       updateGlobalCounter();
-    } catch(e) {}
+    } catch (e) { }
   }
   restoreProgressFromLocalStorage();
+
+  // ===== Sede / Check-in =====
+  const sedeSelect = document.getElementById('sede');
+  const sedeBadge = document.getElementById('sede-activa');
+
+  if (sedeSelect) {
+    // Restaurar sede guardada (si existe)
+    const savedSede = localStorage.getItem(SEDE_STORAGE_KEY);
+    if (savedSede) {
+      sedeSelect.value = savedSede;
+      if (sedeBadge) {
+        sedeBadge.textContent = `✅ Sede actual: ${savedSede}`;
+      }
+    }
+
+    // Guardar sede cuando cambie
+    sedeSelect.addEventListener('change', () => {
+      const v = sedeSelect.value || '';
+      localStorage.setItem(SEDE_STORAGE_KEY, v);
+      if (sedeBadge) {
+        sedeBadge.textContent = v
+          ? `✅ Sede actual: ${v}`
+          : '⚠️ Sin sede seleccionada';
+      }
+    });
+  }
+
 
   // ===== Cargar archivo (cliente) desde Drive (CSV) =====
   document.getElementById('cargar-desde-drive').addEventListener('click', () => {
@@ -190,7 +219,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const ul = document.getElementById('scanned-list');
     ul.innerHTML = '';
 
-    const sorted = products.slice().sort((a,b) => {
+    const sorted = products.slice().sort((a, b) => {
       if (a.codigo_barra === scannedCode) return -1;
       if (b.codigo_barra === scannedCode) return 1;
       return 0;
@@ -258,11 +287,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const placa = (document.getElementById('placa').value || '').trim();
     const remitente = (document.getElementById('remitente').value || '').trim();
     const fecha = (document.getElementById('fecha').value || '').trim();
+    const sede = (document.getElementById('sede')?.value || '').trim();
 
     if (!placa || !remitente) {
       alert("Por favor, completa Placa y Remitente.");
       return;
     }
+    if (!sede) {
+      alert("Por favor, selecciona la sede desde donde haces el descargue.");
+      return;
+    }
+
     if (!products.length) {
       alert("Primero carga el archivo del cliente.");
       return;
@@ -286,6 +321,7 @@ document.addEventListener('DOMContentLoaded', function () {
         tipo: TIPO_FIJO,              // DESCARGUE fijo
         remitente,
         fecha,                        // informativo; el backend usa la regla 6am
+        sede,                         // <-- NUEVO: sede / check-in
         total_unidades: globalUnitsScanned,
         timestamp_envio: new Date().toISOString()
       },
