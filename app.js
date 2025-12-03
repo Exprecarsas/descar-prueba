@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function () {
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxviDpRACUW8GMp3HfsIznOJCbXLcCIXI3qvjL-PcYZLYnIRbRAwcpMpLq1JSPfJfJ_dQ/exec'; // <-- tu /exec
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz3cQxqUmnNywKTKNKZfr9lJOpnV4rhGH18Rnbqt4GZZT8KkDoNTzkObJ6EXyVdhdkhOQ/exec'; // <-- tu /exec
   const TIPO_FIJO = 'DESCARGUE';
   const SEDE_STORAGE_KEY = 'sede_descargue_actual'; // para recordar la sede (check-in)
 
