@@ -1,8 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxiZiHkLCrgFHcLcOiEYeMJH9cHULFe0SIfdBo5HCDJfMK0icAD8UBjvJo3Y7Oky0Suyg/exec'; // <-- tu /exec
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxviDpRACUW8GMp3HfsIznOJCbXLcCIXI3qvjL-PcYZLYnIRbRAwcpMpLq1JSPfJfJ_dQ/exec'; // <-- tu /exec
   const TIPO_FIJO = 'DESCARGUE';
-  const SEDE_STORAGE_KEY = 'sede_descargue_actual';
-
+  const SEDE_STORAGE_KEY = 'sede_descargue_actual'; // para recordar la sede (check-in)
 
   let products = [];            // desde CSV de Drive
   let scannedUnits = {};        // contador por código_barra
@@ -11,36 +10,44 @@ document.addEventListener('DOMContentLoaded', function () {
   let html5QrCode;              // cámara (opcional)
   let audioContext;
   let scanLock = false;
-  let codigosCorrectos = [];    // [{codigo, hora}]
-  let codigosIncorrectos = [];  // [{codigo, hora}]
+  let codigosCorrectos = [];    // [{codigo, hora}] con código COMPLETO (incluye sufijo)
+  let codigosIncorrectos = [];  // [{codigo, hora}] igual
   let barcodeTimeout;
 
   // ===== Audio =====
   function initializeAudioContext() {
     if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
   }
-  function playTone(freq, dur, type = 'sine', vol = 1.0) {
+  function playTone(freq, dur, type='sine', vol=1.0) {
     try {
       if (!audioContext) initializeAudioContext();
       const osc = audioContext.createOscillator();
       const gain = audioContext.createGain();
-      osc.type = type; osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+      osc.type = type; 
+      osc.frequency.setValueAtTime(freq, audioContext.currentTime);
       gain.gain.value = vol;
-      osc.connect(gain); gain.connect(audioContext.destination);
-      osc.start(); setTimeout(() => osc.stop(), dur);
-    } catch (e) { }
+      osc.connect(gain); 
+      gain.connect(audioContext.destination);
+      osc.start(); 
+      setTimeout(()=>osc.stop(), dur);
+    } catch(e) {}
   }
   document.body.addEventListener('click', initializeAudioContext, { once: true });
 
-  // ===== Persistencia (opcional) =====
+  // ===== Persistencia (progreso de escaneo) =====
   function saveProgressToLocalStorage() {
     const data = {
-      products, scannedUnits, globalUnitsScanned, totalUnits,
-      codigosCorrectos, codigosIncorrectos
+      products,
+      scannedUnits,
+      globalUnitsScanned,
+      totalUnits,
+      codigosCorrectos,
+      codigosIncorrectos
     };
     const compressed = LZString.compress(JSON.stringify(data));
     localStorage.setItem('scanProgress', compressed);
   }
+
   function restoreProgressFromLocalStorage() {
     const saved = localStorage.getItem('scanProgress');
     if (!saved) return;
@@ -56,16 +63,15 @@ document.addEventListener('DOMContentLoaded', function () {
       codigosIncorrectos = d.codigosIncorrectos || [];
       updateScannedList();
       updateGlobalCounter();
-    } catch (e) { }
+    } catch(e) {}
   }
   restoreProgressFromLocalStorage();
 
   // ===== Sede / Check-in =====
   const sedeSelect = document.getElementById('sede');
-  const sedeBadge = document.getElementById('sede-activa');
+  const sedeBadge  = document.getElementById('sede-activa');
 
   if (sedeSelect) {
-    // Restaurar sede guardada (si existe)
     const savedSede = localStorage.getItem(SEDE_STORAGE_KEY);
     if (savedSede) {
       sedeSelect.value = savedSede;
@@ -73,8 +79,6 @@ document.addEventListener('DOMContentLoaded', function () {
         sedeBadge.textContent = `✅ Sede actual: ${savedSede}`;
       }
     }
-
-    // Guardar sede cuando cambie
     sedeSelect.addEventListener('change', () => {
       const v = sedeSelect.value || '';
       localStorage.setItem(SEDE_STORAGE_KEY, v);
@@ -86,18 +90,24 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-
   // ===== Cargar archivo (cliente) desde Drive (CSV) =====
   document.getElementById('cargar-desde-drive').addEventListener('click', () => {
     const fileId = document.getElementById('archivo-select').value;
-    if (!fileId) { alert("Selecciona un cliente para cargar su archivo."); return; }
+    if (!fileId) { 
+      alert("Selecciona un cliente para cargar su archivo."); 
+      return; 
+    }
 
     const exportUrl = `https://docs.google.com/spreadsheets/d/${fileId}/export?format=csv`;
     fetch(exportUrl)
-      .then(r => { if (!r.ok) throw new Error("No se pudo acceder al archivo desde Drive."); return r.text(); })
+      .then(r => { 
+        if (!r.ok) throw new Error("No se pudo acceder al archivo desde Drive."); 
+        return r.text(); 
+      })
       .then(csvText => {
         Papa.parse(csvText, {
-          header: true, skipEmptyLines: true,
+          header: true,
+          skipEmptyLines: true,
           complete: (results) => {
             products = results.data.map(item => ({
               codigo_barra: (item['codigo_barra'] || '').trim(),
@@ -105,7 +115,10 @@ document.addEventListener('DOMContentLoaded', function () {
               ciudad: (item['ciudad'] || '').trim(),
               codigos_validos: [
                 (item['codigo_barra'] || '').trim(),
-                ...((item['codigos_adicionales'] || '').split(',').map(s => s.trim()).filter(Boolean))
+                ...((item['codigos_adicionales'] || '')
+                  .split(',')
+                  .map(s => s.trim())
+                  .filter(Boolean))
               ],
               scannedSubcodes: [],
               noSufijoCount: 0
@@ -149,38 +162,47 @@ document.addEventListener('DOMContentLoaded', function () {
       }, 1000);
     }
   });
-  function clearBarcodeInput() { document.getElementById('barcodeInput').value = ''; }
+  function clearBarcodeInput() { 
+    document.getElementById('barcodeInput').value = ''; 
+  }
 
   function obtenerHoraFormateada() {
     const d = new Date();
     let h = d.getHours(), m = d.getMinutes(), s = d.getSeconds();
     const ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12; h = h ? h : 12;
+    h = h % 12; 
+    h = h ? h : 12;
     const pad = (n) => n < 10 ? '0' + n : n;
     return `${h}:${pad(m)}:${pad(s)} ${ampm}`;
   }
 
-  // ===== Lógica de escaneo con comparación =====
+  // ===== Lógica de escaneo con comparación (conservando sufijo en el log) =====
   function handleBarcodeScan(scannedCode) {
-    const parts = String(scannedCode || '').split('-');
+    const rawCode = String(scannedCode || '').trim(); // código tal cual lo lee la pistola (con sufijo)
+    const parts = rawCode.split('-');
+
     let main = (parts[0] || '').trim();
-    main = main.replace(/^0+/, ''); // sin ceros iniciales
+    main = main.replace(/^0+/, ''); // sin ceros iniciales para buscar en codigos_validos
     const sub = (parts[1] || '').trim();
     const now = obtenerHoraFormateada();
 
+    // Buscar producto solo por el "main" sin ceros iniciales
     const p = products.find(x => x.codigos_validos.includes(main));
 
     if (p) {
       const cur = scannedUnits[p.codigo_barra] || 0;
       if (cur >= p.cantidad) {
         alert(`El producto ${main} ya alcanzó la cantidad total (${p.cantidad}).`);
-        playTone(220, 400, 'square'); clearBarcodeInput(); return;
+        playTone(220, 400, 'square');
+        clearBarcodeInput();
+        return;
       }
 
-      // Registrar en correctos
-      codigosCorrectos.push({ codigo: main, hora: now });
+      // Guardamos el código COMPLETO (con sufijo) en correctos
+      codigosCorrectos.push({ codigo: rawCode, hora: now });
 
       if (sub === '' || p.cantidad === 1) {
+        // Código sin sufijo (o solo 1 unidad)
         if (p.noSufijoCount < p.cantidad) {
           p.noSufijoCount += 1;
           scannedUnits[p.codigo_barra] += 1;
@@ -191,6 +213,7 @@ document.addEventListener('DOMContentLoaded', function () {
           playTone(220, 400, 'square');
         }
       } else {
+        // Código con sufijo → control por subcódigo
         if (!p.scannedSubcodes.includes(sub)) {
           p.scannedSubcodes.push(sub);
           scannedUnits[p.codigo_barra] += 1;
@@ -207,9 +230,11 @@ document.addEventListener('DOMContentLoaded', function () {
       saveProgressToLocalStorage();
 
     } else {
+      // Código no encontrado → incorrecto, guardando completo
       playTone(220, 400, 'square');
       alert("El código escaneado no coincide con ningún producto.");
-      codigosIncorrectos.push({ codigo: main, hora: now });
+      codigosIncorrectos.push({ codigo: rawCode, hora: now });
+      saveProgressToLocalStorage();
     }
     clearBarcodeInput();
   }
@@ -219,7 +244,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const ul = document.getElementById('scanned-list');
     ul.innerHTML = '';
 
-    const sorted = products.slice().sort((a, b) => {
+    const sorted = products.slice().sort((a,b) => {
       if (a.codigo_barra === scannedCode) return -1;
       if (b.codigo_barra === scannedCode) return 1;
       return 0;
@@ -228,18 +253,23 @@ document.addEventListener('DOMContentLoaded', function () {
     sorted.forEach(p => {
       const done = scannedUnits[p.codigo_barra] || 0;
       const pct = p.cantidad ? (done / p.cantidad) * 100 : 0;
-      let cls = done === p.cantidad ? 'status-complete' : (done > 0 ? 'status-warning' : 'status-incomplete');
+      let cls = done === p.cantidad 
+        ? 'status-complete' 
+        : (done > 0 ? 'status-warning' : 'status-incomplete');
       const li = document.createElement('li');
       li.className = cls;
       li.innerHTML = `
         <span><strong>Códigos Adicionales:</strong> ${p.codigos_validos.join(', ')}</span><br>
         <span class="city"><strong>Ciudad:</strong> ${p.ciudad}</span>
-        <div class="progress-bar"><div class="progress-bar-inner" style="width:${pct}%"></div></div>
+        <div class="progress-bar">
+          <div class="progress-bar-inner" style="width:${pct}%"></div>
+        </div>
         <span class="progress-text">${done} de ${p.cantidad} unidades escaneadas</span>
       `;
       ul.appendChild(li);
     });
   }
+
   function updateGlobalCounter() {
     document.getElementById('global-counter').innerText =
       `Unidades descargadas: ${globalUnitsScanned} de ${totalUnits}`;
@@ -269,12 +299,15 @@ document.addEventListener('DOMContentLoaded', function () {
     codigosIncorrectos = [];
 
     const sel = document.getElementById('archivo-select');
-    sel.disabled = false; sel.value = "";
+    sel.disabled = false; 
+    sel.value = "";
     document.getElementById('cargar-desde-drive').disabled = false;
 
     const box = document.getElementById('cliente-cargado');
-    box.innerText = ''; box.style.display = 'none';
+    box.innerText = ''; 
+    box.style.display = 'none';
 
+    // La sede permanece como check-in, no se borra aquí
     updateScannedList();
     updateGlobalCounter();
     saveProgressToLocalStorage();
@@ -282,12 +315,12 @@ document.addEventListener('DOMContentLoaded', function () {
     alert('Proceso finalizado. Los datos se han eliminado.');
   });
 
-  // ===== Enviar comparativo a Google Sheets (NO Excel) =====
+  // ===== Enviar comparativo a Google Sheets =====
   document.getElementById('generar-reporte').addEventListener('click', async () => {
     const placa = (document.getElementById('placa').value || '').trim();
     const remitente = (document.getElementById('remitente').value || '').trim();
     const fecha = (document.getElementById('fecha').value || '').trim();
-    const sede = (document.getElementById('sede')?.value || '').trim();
+    const sede = (document.getElementById('sede')?.value || '').trim(); // sede check-in
 
     if (!placa || !remitente) {
       alert("Por favor, completa Placa y Remitente.");
@@ -297,41 +330,47 @@ document.addEventListener('DOMContentLoaded', function () {
       alert("Por favor, selecciona la sede desde donde haces el descargue.");
       return;
     }
-
     if (!products.length) {
       alert("Primero carga el archivo del cliente.");
       return;
     }
 
-    // Construir RESUMEN (3 columnas): Código, UnidadesEsc (X/Y), Ciudad
+    // RESUMEN (3 columnas): Código, UnidadesEsc (X/Y), Ciudad
     const resumen = products.map(p => ({
       codigoBarra: p.codigo_barra,
       unidadesEsc: `${scannedUnits[p.codigo_barra] || 0} / ${p.cantidad || 0}`,
       ciudad: p.ciudad
     }));
 
-    // Correctos / Incorrectos (n, codigo, hora)
-    const correctos = codigosCorrectos.map((r, i) => ({ n: i + 1, codigo: r.codigo, hora: r.hora }));
-    const incorrectos = codigosIncorrectos.map((r, i) => ({ n: i + 1, codigo: r.codigo, hora: r.hora }));
+    // Correctos / Incorrectos (n, codigo COMPLETO, hora)
+    const correctos = codigosCorrectos.map((r, i) => ({
+      n: i + 1,
+      codigo: r.codigo,
+      hora: r.hora
+    }));
+    const incorrectos = codigosIncorrectos.map((r, i) => ({
+      n: i + 1,
+      codigo: r.codigo,
+      hora: r.hora
+    }));
 
-    // Armar payload para tu Code.gs (comparativo apilado en 3 columnas)
     const payload = {
       meta: {
         placa,
         tipo: TIPO_FIJO,              // DESCARGUE fijo
         remitente,
         fecha,                        // informativo; el backend usa la regla 6am
-        sede,                         // <-- NUEVO: sede / check-in
+        sede,                         // sede / check-in
         total_unidades: globalUnitsScanned,
         timestamp_envio: new Date().toISOString()
       },
       comparativo: { resumen, correctos, incorrectos }
     };
 
-    // Enviar
     const btn = document.getElementById('generar-reporte');
     const original = btn.textContent;
-    btn.disabled = true; btn.textContent = 'Enviando...';
+    btn.disabled = true; 
+    btn.textContent = 'Enviando...';
 
     try {
       if (!/^https?:\/\/script\.google\.com\/macros\//.test(SCRIPT_URL)) {
@@ -348,21 +387,20 @@ document.addEventListener('DOMContentLoaded', function () {
         throw new Error(`HTTP ${resp.status}: ${t}`);
       }
       const result = await resp.json().catch(() => ({}));
-      alert(`Enviado a Google Sheets.\nHoja: ${result.sheet || '-'} | Col inicial: ${result.startCol || '-'} | Modo: ${result.mode || 'comparativo'}`);
+      alert(
+        `Enviado a Google Sheets.\n` +
+        `Hoja: ${result.sheet || '-'} | Col inicial: ${result.startCol || '-'} | ` +
+        `Modo: ${result.mode || 'comparativo'}`
+      );
 
-      // Cerrar modal
       document.getElementById('modal').style.display = 'none';
-
-      // (Opcional) limpiar después de enviar:
-      // products = []; scannedUnits = {}; globalUnitsScanned = 0; totalUnits = 0;
-      // codigosCorrectos = []; codigosIncorrectos = [];
-      // updateScannedList(); updateGlobalCounter(); saveProgressToLocalStorage();
 
     } catch (err) {
       console.error(err);
       alert('No se pudo enviar a Google Sheets. Revisa la consola para más detalles.');
     } finally {
-      btn.disabled = false; btn.textContent = original;
+      btn.disabled = false; 
+      btn.textContent = original;
     }
   });
 });
