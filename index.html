@@ -78,20 +78,19 @@
   <div id="modal" class="modal" style="display: none;">
     <div class="modal-content">
       <h3>Información de la Descarga</h3>
-      <div class="campo">
-        <label for="sede">Sede / Punto de descargue</label>
+      <div class="sede-wrapper">
+        <label for="sede">Sede del descargue</label>
         <select id="sede">
           <option value="">Selecciona una sede...</option>
-          <option value="Girón">Giron</option>
+          <option value="Bucaramanga">Bucaramanga</option>
           <option value="Medellín">Medellín</option>
           <option value="Bogotá">Bogotá</option>
-          <option value="Cúcuta">Cúcuta</option>
-          <!-- agrega las sedes que necesites -->
+          <option value="Cúcuta">Cúcuta</option>          
         </select>
+
+        <div id="sede-activa"></div>
       </div>
 
-      <!-- (Opcional) mostrar sede activa -->
-      <div id="sede-activa" style="margin-top:8px;font-weight:bold;"></div>
 
       <input type="text" id="placa" placeholder="Placa de Vehículo">
       <input type="text" id="remitente" placeholder="Remitente">
