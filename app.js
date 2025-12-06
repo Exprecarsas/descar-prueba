@@ -18,19 +18,19 @@ document.addEventListener('DOMContentLoaded', function () {
   function initializeAudioContext() {
     if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
   }
-  function playTone(freq, dur, type='sine', vol=1.0) {
+  function playTone(freq, dur, type = 'sine', vol = 1.0) {
     try {
       if (!audioContext) initializeAudioContext();
       const osc = audioContext.createOscillator();
       const gain = audioContext.createGain();
-      osc.type = type; 
+      osc.type = type;
       osc.frequency.setValueAtTime(freq, audioContext.currentTime);
       gain.gain.value = vol;
-      osc.connect(gain); 
+      osc.connect(gain);
       gain.connect(audioContext.destination);
-      osc.start(); 
-      setTimeout(()=>osc.stop(), dur);
-    } catch(e) {}
+      osc.start();
+      setTimeout(() => osc.stop(), dur);
+    } catch (e) { }
   }
   document.body.addEventListener('click', initializeAudioContext, { once: true });
 
@@ -63,13 +63,13 @@ document.addEventListener('DOMContentLoaded', function () {
       codigosIncorrectos = d.codigosIncorrectos || [];
       updateScannedList();
       updateGlobalCounter();
-    } catch(e) {}
+    } catch (e) { }
   }
   restoreProgressFromLocalStorage();
 
   // ===== Sede / Check-in =====
   const sedeSelect = document.getElementById('sede');
-  const sedeBadge  = document.getElementById('sede-activa');
+  const sedeBadge = document.getElementById('sede-activa');
 
   if (sedeSelect) {
     const savedSede = localStorage.getItem(SEDE_STORAGE_KEY);
@@ -93,36 +93,51 @@ document.addEventListener('DOMContentLoaded', function () {
   // ===== Cargar archivo (cliente) desde Drive (CSV) =====
   document.getElementById('cargar-desde-drive').addEventListener('click', () => {
     const fileId = document.getElementById('archivo-select').value;
-    if (!fileId) { 
-      alert("Selecciona un cliente para cargar su archivo."); 
-      return; 
+    if (!fileId) {
+      alert("Selecciona un cliente para cargar su archivo.");
+      return;
     }
 
     const exportUrl = `https://docs.google.com/spreadsheets/d/${fileId}/export?format=csv`;
     fetch(exportUrl)
-      .then(r => { 
-        if (!r.ok) throw new Error("No se pudo acceder al archivo desde Drive."); 
-        return r.text(); 
+      .then(r => {
+        if (!r.ok) throw new Error("No se pudo acceder al archivo desde Drive.");
+        return r.text();
       })
       .then(csvText => {
         Papa.parse(csvText, {
           header: true,
           skipEmptyLines: true,
           complete: (results) => {
-            products = results.data.map(item => ({
-              codigo_barra: (item['codigo_barra'] || '').trim(),
-              cantidad: parseInt((item['cantidad'] || '0').trim(), 10),
-              ciudad: (item['ciudad'] || '').trim(),
-              codigos_validos: [
-                (item['codigo_barra'] || '').trim(),
-                ...((item['codigos_adicionales'] || '')
-                  .split(',')
-                  .map(s => s.trim())
-                  .filter(Boolean))
-              ],
-              scannedSubcodes: [],
-              noSufijoCount: 0
-            }));
+            products = results.data.map(item => {
+              const codigoBarra = (item['codigo_barra'] || '').trim();        // Columna A
+              const documentoTercero = (item['documento_tercero'] || '').trim();   // Columna D (puede venir vacía)
+              const codigosAdicionales = (item['codigos_adicionales'] || '')
+                .split(',')
+                .map(s => s.trim())
+                .filter(Boolean);
+
+              // Siempre buscamos por A
+              const codigos_validos = [codigoBarra];
+
+              // 👇 Solo agregamos D si NO está vacío
+              if (documentoTercero) {
+                codigos_validos.push(documentoTercero);
+              }
+
+              // Y luego los adicionales
+              codigosAdicionales.forEach(c => codigos_validos.push(c));
+
+              return {
+                codigo_barra: codigoBarra,
+                documento_tercero: documentoTercero, // por si luego quieres mostrarlo
+                cantidad: parseInt((item['cantidad'] || '0').trim(), 10),
+                ciudad: (item['ciudad'] || '').trim(),
+                codigos_validos,                      // A + (D si hay) + adicionales
+                scannedSubcodes: [],
+                noSufijoCount: 0
+              };
+            });
 
             scannedUnits = {};
             globalUnitsScanned = 0;
@@ -146,6 +161,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             alert("Archivo cargado correctamente.");
           }
+
         });
       })
       .catch(err => alert("Error al cargar el archivo: " + err.message));
@@ -162,15 +178,15 @@ document.addEventListener('DOMContentLoaded', function () {
       }, 1000);
     }
   });
-  function clearBarcodeInput() { 
-    document.getElementById('barcodeInput').value = ''; 
+  function clearBarcodeInput() {
+    document.getElementById('barcodeInput').value = '';
   }
 
   function obtenerHoraFormateada() {
     const d = new Date();
     let h = d.getHours(), m = d.getMinutes(), s = d.getSeconds();
     const ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12; 
+    h = h % 12;
     h = h ? h : 12;
     const pad = (n) => n < 10 ? '0' + n : n;
     return `${h}:${pad(m)}:${pad(s)} ${ampm}`;
@@ -244,7 +260,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const ul = document.getElementById('scanned-list');
     ul.innerHTML = '';
 
-    const sorted = products.slice().sort((a,b) => {
+    const sorted = products.slice().sort((a, b) => {
       if (a.codigo_barra === scannedCode) return -1;
       if (b.codigo_barra === scannedCode) return 1;
       return 0;
@@ -253,8 +269,8 @@ document.addEventListener('DOMContentLoaded', function () {
     sorted.forEach(p => {
       const done = scannedUnits[p.codigo_barra] || 0;
       const pct = p.cantidad ? (done / p.cantidad) * 100 : 0;
-      let cls = done === p.cantidad 
-        ? 'status-complete' 
+      let cls = done === p.cantidad
+        ? 'status-complete'
         : (done > 0 ? 'status-warning' : 'status-incomplete');
       const li = document.createElement('li');
       li.className = cls;
@@ -299,12 +315,12 @@ document.addEventListener('DOMContentLoaded', function () {
     codigosIncorrectos = [];
 
     const sel = document.getElementById('archivo-select');
-    sel.disabled = false; 
+    sel.disabled = false;
     sel.value = "";
     document.getElementById('cargar-desde-drive').disabled = false;
 
     const box = document.getElementById('cliente-cargado');
-    box.innerText = ''; 
+    box.innerText = '';
     box.style.display = 'none';
 
     // La sede permanece como check-in, no se borra aquí
@@ -369,7 +385,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const btn = document.getElementById('generar-reporte');
     const original = btn.textContent;
-    btn.disabled = true; 
+    btn.disabled = true;
     btn.textContent = 'Enviando...';
 
     try {
@@ -399,7 +415,7 @@ document.addEventListener('DOMContentLoaded', function () {
       console.error(err);
       alert('No se pudo enviar a Google Sheets. Revisa la consola para más detalles.');
     } finally {
-      btn.disabled = false; 
+      btn.disabled = false;
       btn.textContent = original;
     }
   });
