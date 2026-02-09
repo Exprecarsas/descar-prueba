@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // CONTROL DE ENVÍO
   let enviandoProceso = false;
   let firmaUltimoEnvio = null;
+  let procesoYaEnviado = false;
 
   function generarFirmaDatos() {
     return JSON.stringify({
@@ -235,48 +236,58 @@ document.addEventListener('DOMContentLoaded', function () {
   // ENVIAR A GOOGLE SHEETS
   document.getElementById('generar-reporte').addEventListener('click', async () => {
 
-    if(enviandoProceso) return;
+  if (procesoYaEnviado) {
+    alert("Este proceso ya fue enviado. Debes iniciar uno nuevo.");
+    return;
+  }
 
-    const firmaActual = generarFirmaDatos();
-    if(firmaUltimoEnvio && firmaActual===firmaUltimoEnvio){
-      alert("Este proceso ya fue enviado.");
-      return;
-    }
+  if (enviandoProceso) {
+    return;
+  }
 
-    const payload={
-      meta:{total_unidades:globalUnitsScanned},
-      comparativo:{codigosCorrectos,codigosIncorrectos}
-    };
+  const firmaActual = generarFirmaDatos();
 
-    const btn=document.getElementById('generar-reporte');
-    const original=btn.textContent;
+  if (firmaUltimoEnvio && firmaActual === firmaUltimoEnvio) {
+    alert("No hay cambios para volver a enviar.");
+    return;
+  }
 
-    try{
-      enviandoProceso=true;
-      btn.disabled=true;
-      btn.textContent="Enviando...";
+  const payload = {
+    meta: { total_unidades: globalUnitsScanned },
+    comparativo: { codigosCorrectos, codigosIncorrectos }
+  };
 
-      const resp=await fetch(SCRIPT_URL,{
-        method:'POST',
-        headers:{'Content-Type':'text/plain;charset=UTF-8'},
-        body:JSON.stringify(payload)
-      });
+  const btn = document.getElementById('generar-reporte');
+  const original = btn.textContent;
 
-      if(!resp.ok) throw new Error();
+  try {
+    enviandoProceso = true;
+    btn.disabled = true;
+    btn.textContent = "Enviando...";
 
-      firmaUltimoEnvio=firmaActual;
-      alert("Enviado correctamente");
-      document.getElementById('modal').style.display='none';
+    const resp = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+      body: JSON.stringify(payload)
+    });
 
-    }catch(err){
-      alert("Error enviando");
-    }finally{
-      enviandoProceso=false;
-      btn.disabled=false;
-      btn.textContent=original;
-    }
+    if (!resp.ok) throw new Error();
 
-  });
+    firmaUltimoEnvio = firmaActual;
+    procesoYaEnviado = true;
+
+    alert("Proceso enviado correctamente.");
+
+    document.getElementById('modal').style.display = 'none';
+
+  } catch (err) {
+    alert("Error enviando");
+  } finally {
+    enviandoProceso = false;
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+});
 
 });
 
