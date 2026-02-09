@@ -179,26 +179,78 @@ document.addEventListener('DOMContentLoaded', function () {
     return `${h}:${pad(m)}:${pad(s)} ${ampm}`;
   }
 
-  function handleBarcodeScan(scannedCode) {
-    const rawCode = scannedCode.trim();
-    const now = obtenerHoraFormateada();
+function handleBarcodeScan(scannedCode) {
 
-    const p = products.find(x => x.codigos_validos.includes(rawCode));
+  const rawCode = String(scannedCode || '').trim();
 
-    if (p) {
-      codigosCorrectos.push({ codigo: rawCode, hora: now });
-      scannedUnits[p.codigo_barra] += 1;
-      globalUnitsScanned += 1;
-      playTone(440,180);
-    } else {
-      codigosIncorrectos.push({ codigo: rawCode, hora: now });
-      playTone(220,400);
+  const yaEscaneado = codigosCorrectos.some(c => c.codigo === rawCode);
+  if (yaEscaneado) {
+    playTone(220, 400, 'square');
+    alert("Este código ya fue escaneado.");
+    clearBarcodeInput();
+    return;
+  }
+
+  const parts = rawCode.split('-');
+
+  let main = (parts[0] || '').trim();
+  main = main.replace(/^0+/, '');
+  const sub = (parts[1] || '').trim();
+  const now = obtenerHoraFormateada();
+
+  const p = products.find(x => x.codigos_validos.includes(main));
+
+  if (p) {
+
+    const cur = scannedUnits[p.codigo_barra] || 0;
+    if (cur >= p.cantidad) {
+      alert(`El producto ${main} ya alcanzó la cantidad total (${p.cantidad}).`);
+      playTone(220, 400, 'square');
+      clearBarcodeInput();
+      return;
     }
 
-    updateScannedList();
+    codigosCorrectos.push({ codigo: rawCode, hora: now });
+
+    if (sub === '' || p.cantidad === 1) {
+
+      if (p.noSufijoCount < p.cantidad) {
+        p.noSufijoCount += 1;
+        scannedUnits[p.codigo_barra] += 1;
+        globalUnitsScanned += 1;
+        playTone(440, 180, 'sine');
+      } else {
+        alert(`El código ${main} ya fue escaneado ${p.cantidad} vez/veces.`);
+        playTone(220, 400, 'square');
+      }
+
+    } else {
+
+      if (!p.scannedSubcodes.includes(sub)) {
+        p.scannedSubcodes.push(sub);
+        scannedUnits[p.codigo_barra] += 1;
+        globalUnitsScanned += 1;
+        playTone(440, 180, 'sine');
+      } else {
+        alert(`El subcódigo -${sub} de ${main} ya fue escaneado.`);
+        playTone(220, 400, 'square');
+      }
+    }
+
+    updateScannedList(p.codigo_barra);
     updateGlobalCounter();
     saveProgressToLocalStorage();
+
+  } else {
+
+    playTone(220, 400, 'square');
+    alert("El código escaneado no coincide con ningún producto.");
+    codigosIncorrectos.push({ codigo: rawCode, hora: now });
+    saveProgressToLocalStorage();
   }
+
+  clearBarcodeInput();
+}
 
   function updateScannedList() {
     const ul = document.getElementById('scanned-list');
