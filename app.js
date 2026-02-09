@@ -341,90 +341,100 @@ function generarFirmaDatos(){
 
   // ===== Enviar comparativo a Google Sheets =====
   document.getElementById('generar-reporte').addEventListener('click', async () => {
-    const placa = (document.getElementById('placa').value || '').trim();
-    const remitente = (document.getElementById('remitente').value || '').trim();
-    const fecha = (document.getElementById('fecha').value || '').trim();
-    const sede = (document.getElementById('sede')?.value || '').trim(); // sede check-in
 
-    if (!placa || !remitente) {
-      alert("Por favor, completa Placa y Remitente.");
-      return;
-    }
-    if (!sede) {
-      alert("Por favor, selecciona la sede desde donde haces el descargue.");
-      return;
-    }
-    if (!products.length) {
-      alert("Primero carga el archivo del cliente.");
-      return;
-    }
+  if (enviandoProceso) {
+    alert("El proceso ya se está enviando...");
+    return;
+  }
 
-    // RESUMEN (3 columnas): Código, UnidadesEsc (X/Y), Ciudad
-    const resumen = products.map(p => ({
-      codigoBarra: p.codigo_barra,
-      unidadesEsc: `${scannedUnits[p.codigo_barra] || 0} / ${p.cantidad || 0}`,
-      ciudad: p.ciudad
-    }));
+  const firmaActual = generarFirmaDatos();
 
-    // Correctos / Incorrectos (n, codigo COMPLETO, hora)
-    const correctos = codigosCorrectos.map((r, i) => ({
-      n: i + 1,
-      codigo: r.codigo,
-      hora: r.hora
-    }));
-    const incorrectos = codigosIncorrectos.map((r, i) => ({
-      n: i + 1,
-      codigo: r.codigo,
-      hora: r.hora
-    }));
+  // Si ya se envió y no hay cambios
+  if (firmaUltimoEnvio && firmaActual === firmaUltimoEnvio) {
+    alert("Este descargue ya fue enviado y no tiene cambios.");
+    return;
+  }
 
-    const payload = {
-      meta: {
-        placa,
-        tipo: TIPO_FIJO,              // DESCARGUE fijo
-        remitente,
-        fecha,                        // informativo; el backend usa la regla 6am
-        sede,                         // sede / check-in
-        total_unidades: globalUnitsScanned,
-        timestamp_envio: new Date().toISOString()
-      },
-      comparativo: { resumen, correctos, incorrectos }
-    };
+  const placa = (document.getElementById('placa').value || '').trim();
+  const remitente = (document.getElementById('remitente').value || '').trim();
+  const fecha = (document.getElementById('fecha').value || '').trim();
+  const sede = (document.getElementById('sede')?.value || '').trim();
 
-    const btn = document.getElementById('generar-reporte');
-    const original = btn.textContent;
+  if (!placa || !remitente) {
+    alert("Por favor, completa Placa y Remitente.");
+    return;
+  }
+  if (!sede) {
+    alert("Por favor, selecciona la sede desde donde haces el descargue.");
+    return;
+  }
+  if (!products.length) {
+    alert("Primero carga el archivo del cliente.");
+    return;
+  }
+
+  const resumen = products.map(p => ({
+    codigoBarra: p.codigo_barra,
+    unidadesEsc: `${scannedUnits[p.codigo_barra] || 0} / ${p.cantidad || 0}`,
+    ciudad: p.ciudad
+  }));
+
+  const correctos = codigosCorrectos.map((r, i) => ({
+    n: i + 1,
+    codigo: r.codigo,
+    hora: r.hora
+  }));
+
+  const incorrectos = codigosIncorrectos.map((r, i) => ({
+    n: i + 1,
+    codigo: r.codigo,
+    hora: r.hora
+  }));
+
+  const payload = {
+    meta: {
+      placa,
+      tipo: TIPO_FIJO,
+      remitente,
+      fecha,
+      sede,
+      total_unidades: globalUnitsScanned,
+      timestamp_envio: new Date().toISOString()
+    },
+    comparativo: { resumen, correctos, incorrectos }
+  };
+
+  const btn = document.getElementById('generar-reporte');
+  const original = btn.textContent;
+
+  try {
+
+    enviandoProceso = true;
     btn.disabled = true;
     btn.textContent = 'Enviando...';
 
-    try {
-      if (!/^https?:\/\/script\.google\.com\/macros\//.test(SCRIPT_URL)) {
-        throw new Error('SCRIPT_URL inválida. Configura tu URL /exec.');
-      }
+    const resp = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+      body: JSON.stringify(payload)
+    });
 
-      const resp = await fetch(SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, // evitar preflight CORS
-        body: JSON.stringify(payload)
-      });
-      if (!resp.ok) {
-        const t = await resp.text();
-        throw new Error(`HTTP ${resp.status}: ${t}`);
-      }
-      const result = await resp.json().catch(() => ({}));
-      alert(
-        `Enviado a Google Sheets.\n` +
-        `Hoja: ${result.sheet || '-'} | Col inicial: ${result.startCol || '-'} | ` +
-        `Modo: ${result.mode || 'comparativo'}`
-      );
+    if (!resp.ok) throw new Error();
 
-      document.getElementById('modal').style.display = 'none';
+    // Guardamos firma del último envío
+    firmaUltimoEnvio = firmaActual;
 
-    } catch (err) {
-      console.error(err);
-      alert('No se pudo enviar a Google Sheets. Revisa la consola para más detalles.');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = original;
-    }
-  });
+    alert("Descargue enviado correctamente.");
+
+    document.getElementById('modal').style.display = 'none';
+
+  } catch (err) {
+    alert("No se pudo enviar a Google Sheets.");
+  } finally {
+    enviandoProceso = false;
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+});
+
 });
