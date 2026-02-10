@@ -349,7 +349,6 @@ function generarFirmaDatos(){
 
   const firmaActual = generarFirmaDatos();
 
-  // Si ya se envió y no hay cambios
   if (firmaUltimoEnvio && firmaActual === firmaUltimoEnvio) {
     alert("Este descargue ya fue enviado y no tiene cambios.");
     return;
@@ -368,68 +367,74 @@ function generarFirmaDatos(){
     alert("Por favor, selecciona la sede desde donde haces el descargue.");
     return;
   }
-  if (!products.length) {
-    alert("Primero carga el archivo del cliente.");
+
+  // ✅ permitimos enviar aunque haya solo incorrectos (por si quieren registrar novedad)
+  if (!codigosCorrectos.length && !codigosIncorrectos.length) {
+    alert("No hay códigos para enviar.");
     return;
   }
 
-  const resumen = products.map(p => ({
-    codigoBarra: p.codigo_barra,
-    unidadesEsc: `${scannedUnits[p.codigo_barra] || 0} / ${p.cantidad || 0}`,
-    ciudad: p.ciudad
-  }));
+  // ===== ARMAR UNIDADES (CORRECTOS + INCORRECTOS) =====
+  const unidades = [];
 
-  const correctos = codigosCorrectos.map((r, i) => ({
-    n: i + 1,
-    codigo: r.codigo,
-    hora: r.hora
-  }));
+  // Correctos
+  codigosCorrectos.forEach(c => {
+    unidades.push({
+      codigo: c.codigo,
+      hora: c.hora,
+      estado: "CORRECTO"
+    });
+  });
 
-  const incorrectos = codigosIncorrectos.map((r, i) => ({
-    n: i + 1,
-    codigo: r.codigo,
-    hora: r.hora
-  }));
+  // Incorrectos
+  codigosIncorrectos.forEach(c => {
+    unidades.push({
+      codigo: c.codigo,
+      hora: c.hora,
+      estado: "NO_PLANILLADO"
+    });
+  });
 
   const payload = {
-    meta: {
-      placa,
-      tipo: TIPO_FIJO,
-      remitente,
-      fecha,
-      sede,
-      total_unidades: globalUnitsScanned,
-      timestamp_envio: new Date().toISOString()
-    },
-    comparativo: { resumen, correctos, incorrectos }
+    tipo: TIPO_FIJO,           // DESCARGUE (proceso)
+    placa: placa,
+    sede: sede,
+    fecha_operativa: fecha,
+    remitente: remitente,      // (no lo usa tu PHP hoy, pero lo mandamos por si luego lo agregas)
+    unidades: unidades
   };
 
   const btn = document.getElementById('generar-reporte');
   const original = btn.textContent;
 
   try {
-
     enviandoProceso = true;
     btn.disabled = true;
     btn.textContent = 'Enviando...';
 
-    const resp = await fetch(SCRIPT_URL, {
+    const resp = await fetch('https://exprecar.com/api/guardar_proceso.php', {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
-    if (!resp.ok) throw new Error();
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error);
 
-    // Guardamos firma del último envío
     firmaUltimoEnvio = firmaActual;
 
-    alert("Descargue enviado correctamente.");
+    alert(
+      `Descargue guardado correctamente\n` +
+      `Correctos: ${codigosCorrectos.length}\n` +
+      `Incorrectos: ${codigosIncorrectos.length}\n` +
+      `Total enviados: ${data.total_unidades}`
+    );
 
     document.getElementById('modal').style.display = 'none';
 
   } catch (err) {
-    alert("No se pudo enviar a Google Sheets.");
+    console.error(err);
+    alert("No se pudo guardar el proceso en la base de datos.");
   } finally {
     enviandoProceso = false;
     btn.disabled = false;
