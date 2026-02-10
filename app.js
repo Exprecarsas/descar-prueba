@@ -339,7 +339,7 @@ function generarFirmaDatos(){
     alert('Proceso finalizado. Los datos se han eliminado.');
   });
 
-  // ===== Enviar comparativo a Google Sheets =====
+  // ===== Enviar api =====
   document.getElementById('generar-reporte').addEventListener('click', async () => {
 
   if (enviandoProceso) {
