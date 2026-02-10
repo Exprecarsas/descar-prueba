@@ -19,7 +19,11 @@ document.addEventListener('DOMContentLoaded', function () {
   let procesoYaEnviado = false;
 
 function generarFirmaDatos(){
-  return JSON.stringify({codigosCorrectos,codigosIncorrectos,globalUnitsScanned});
+  return JSON.stringify({
+    correctos: codigosCorrectos.map(c => c.codigo).sort(),
+    incorrectos: codigosIncorrectos.map(c => c.codigo).sort(),
+    total: globalUnitsScanned
+  });
 }
 
   // ===== Audio =====
@@ -303,7 +307,7 @@ function generarFirmaDatos(){
   document.getElementById('finalizar-descarga').addEventListener('click', () => {
     const m = document.getElementById('modal');
     m.style.display = 'flex';
-    document.getElementById('fecha').value = new Date().toLocaleDateString();
+    document.getElementById('fecha').value = new Date().toISOString().slice(0,10);
   });
   document.getElementById('cerrar-modal').addEventListener('click', () => {
     document.getElementById('modal').style.display = 'none';
