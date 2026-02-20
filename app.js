@@ -18,13 +18,21 @@ document.addEventListener('DOMContentLoaded', function () {
   let firmaUltimoEnvio = null;
   let procesoYaEnviado = false;
 
-function generarFirmaDatos(){
-  return JSON.stringify({
-    correctos: codigosCorrectos.map(c => c.codigo).sort(),
-    incorrectos: codigosIncorrectos.map(c => c.codigo).sort(),
-    total: globalUnitsScanned
-  });
-}
+  function generarFirmaDatos() {
+    return JSON.stringify({
+      correctos: codigosCorrectos.map(c => c.codigo).sort(),
+      incorrectos: codigosIncorrectos.map(c => c.codigo).sort(),
+      total: globalUnitsScanned
+    });
+  }
+  function normalizarTexto(texto) {
+    return texto
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // quitar tildes
+      .replace(/\s+/g, " ")
+      .trim();
+  }
 
   // ===== Audio =====
   function initializeAudioContext() {
@@ -307,7 +315,7 @@ function generarFirmaDatos(){
   document.getElementById('finalizar-descarga').addEventListener('click', () => {
     const m = document.getElementById('modal');
     m.style.display = 'flex';
-    document.getElementById('fecha').value = new Date().toISOString().slice(0,10);
+    document.getElementById('fecha').value = new Date().toISOString().slice(0, 10);
   });
   document.getElementById('cerrar-modal').addEventListener('click', () => {
     document.getElementById('modal').style.display = 'none';
@@ -346,104 +354,110 @@ function generarFirmaDatos(){
   // ===== Enviar api =====
   document.getElementById('generar-reporte').addEventListener('click', async () => {
 
-  if (enviandoProceso) {
-    alert("El proceso ya se está enviando...");
-    return;
-  }
+    if (enviandoProceso) {
+      alert("El proceso ya se está enviando...");
+      return;
+    }
 
-  const firmaActual = generarFirmaDatos();
+    const firmaActual = generarFirmaDatos();
 
-  if (firmaUltimoEnvio && firmaActual === firmaUltimoEnvio) {
-    alert("Este descargue ya fue enviado y no tiene cambios.");
-    return;
-  }
+    if (firmaUltimoEnvio && firmaActual === firmaUltimoEnvio) {
+      alert("Este descargue ya fue enviado y no tiene cambios.");
+      return;
+    }
 
-  const placa = (document.getElementById('placa').value || '').trim();
-  const remitente = (document.getElementById('remitente').value || '').trim();
-  const fecha = (document.getElementById('fecha').value || '').trim();
-  const sede = (document.getElementById('sede')?.value || '').trim();
+    const placa = (document.getElementById('placa').value || '').trim();
+    const remitenteInput = document.getElementById('remitente').value || '';
+    const remitente = normalizarTexto(remitenteInput);
+    const fecha = (document.getElementById('fecha').value || '').trim();
+    const sede = (document.getElementById('sede')?.value || '').trim();
 
-  if (!placa || !remitente) {
-    alert("Por favor, completa Placa y Remitente.");
-    return;
-  }
-  if (!sede) {
-    alert("Por favor, selecciona la sede desde donde haces el descargue.");
-    return;
-  }
+    if (!placa) {
+      alert("Debes ingresar la placa del vehículo.");
+      return;
+    }
 
-  // ✅ permitimos enviar aunque haya solo incorrectos (por si quieren registrar novedad)
-  if (!codigosCorrectos.length && !codigosIncorrectos.length) {
-    alert("No hay códigos para enviar.");
-    return;
-  }
+    if (!remitente || remitente.length < 3) {
+      alert("Debes ingresar una ciudad origen válida.");
+      return;
+    }
+    if (!sede) {
+      alert("Por favor, selecciona la sede desde donde haces el descargue.");
+      return;
+    }
 
-  // ===== ARMAR UNIDADES (CORRECTOS + INCORRECTOS) =====
-  const unidades = [];
+    // ✅ permitimos enviar aunque haya solo incorrectos (por si quieren registrar novedad)
+    if (!codigosCorrectos.length && !codigosIncorrectos.length) {
+      alert("No hay códigos para enviar.");
+      return;
+    }
 
-  // Correctos
-  codigosCorrectos.forEach(c => {
-    unidades.push({
-      codigo: c.codigo,
-      hora: c.hora,
-      estado: "CORRECTO"
+    // ===== ARMAR UNIDADES (CORRECTOS + INCORRECTOS) =====
+    const unidades = [];
+
+    // Correctos
+    codigosCorrectos.forEach(c => {
+      unidades.push({
+        codigo: c.codigo,
+        hora: c.hora,
+        estado: "CORRECTO"
+      });
     });
+
+    // Incorrectos
+    codigosIncorrectos.forEach(c => {
+      unidades.push({
+        codigo: c.codigo,
+        hora: c.hora,
+        estado: "NO_PLANILLADO"
+      });
+    });
+
+    const payload = {
+      tipo: TIPO_FIJO,
+      placa: normalizarTexto(placa),
+      sede: normalizarTexto(sede),
+      remitente: remitente,
+      fecha_operativa: fecha,
+      unidades: unidades
+    };
+
+    const btn = document.getElementById('generar-reporte');
+    const original = btn.textContent;
+
+    try {
+      enviandoProceso = true;
+      btn.disabled = true;
+      btn.textContent = 'Enviando...';
+
+      const resp = await fetch('https://exprecar.com/api/guardar_proceso.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error);
+
+      firmaUltimoEnvio = firmaActual;
+
+      alert(
+        `Descargue guardado correctamente\n` +
+        `Correctos: ${codigosCorrectos.length}\n` +
+        `Incorrectos: ${codigosIncorrectos.length}\n` +
+        `Total enviados: ${data.total_unidades}`
+      );
+
+      document.getElementById('modal').style.display = 'none';
+
+    } catch (err) {
+      console.error(err);
+      alert("No se pudo guardar el proceso en la base de datos.");
+    } finally {
+      enviandoProceso = false;
+      btn.disabled = false;
+      btn.textContent = original;
+    }
   });
-
-  // Incorrectos
-  codigosIncorrectos.forEach(c => {
-    unidades.push({
-      codigo: c.codigo,
-      hora: c.hora,
-      estado: "NO_PLANILLADO"
-    });
-  });
-
-  const payload = {
-    tipo: TIPO_FIJO,           // DESCARGUE (proceso)
-    placa: placa,
-    sede: sede,
-    fecha_operativa: fecha,
-    remitente: remitente,      // (no lo usa tu PHP hoy, pero lo mandamos por si luego lo agregas)
-    unidades: unidades
-  };
-
-  const btn = document.getElementById('generar-reporte');
-  const original = btn.textContent;
-
-  try {
-    enviandoProceso = true;
-    btn.disabled = true;
-    btn.textContent = 'Enviando...';
-
-    const resp = await fetch('https://exprecar.com/api/guardar_proceso.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await resp.json();
-    if (!data.ok) throw new Error(data.error);
-
-    firmaUltimoEnvio = firmaActual;
-
-    alert(
-      `Descargue guardado correctamente\n` +
-      `Correctos: ${codigosCorrectos.length}\n` +
-      `Incorrectos: ${codigosIncorrectos.length}\n` +
-      `Total enviados: ${data.total_unidades}`
-    );
-
-    document.getElementById('modal').style.display = 'none';
-
-  } catch (err) {
-    console.error(err);
-    alert("No se pudo guardar el proceso en la base de datos.");
-  } finally {
-    enviandoProceso = false;
-    btn.disabled = false;
-    btn.textContent = original;
-  }
-});
 
 });
