@@ -111,12 +111,43 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // ===== Cargar archivo (cliente) desde Drive (CSV) =====
-  document.getElementById('cargar-desde-drive').addEventListener('click', () => {
+  document.getElementById('cargar-desde-drive').addEventListener('click', async () => {
     const fileId = document.getElementById('archivo-select').value;
     if (!fileId) {
       alert("Selecciona un cliente para cargar su archivo.");
       return;
     }
+    // ================= CREAR PROCESO EN BD =================
+    const placa = prompt("Placa del vehículo:");
+    if (!placa) return;
+
+    const remitente = prompt("Ciudad origen (ej: CUCUTA):");
+    if (!remitente) return;
+
+    const sede = localStorage.getItem(SEDE_STORAGE_KEY) || 'SIN SEDE';
+    const fecha = new Date().toISOString().slice(0, 10);
+
+    const crearProcesoResp = await fetch('https://exprecar.com/api/crear_proceso.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tipo: 'DESCARGUE',
+        placa: placa.trim().toUpperCase(),
+        sede: sede.toUpperCase(),
+        remitente: remitente.trim().toUpperCase(),
+        fecha_operativa: fecha
+      })
+    });
+
+    const procesoData = await crearProcesoResp.json();
+
+    if (!procesoData.ok) {
+      alert("No se pudo crear el proceso");
+      return;
+    }
+
+    const proceso_id = procesoData.proceso_id;
+    console.log("Proceso creado:", proceso_id);
 
     const exportUrl = `https://docs.google.com/spreadsheets/d/${fileId}/export?format=csv`;
     fetch(exportUrl)
@@ -128,7 +159,7 @@ document.addEventListener('DOMContentLoaded', function () {
         Papa.parse(csvText, {
           header: true,
           skipEmptyLines: true,
-          complete: (results) => {
+          complete: async (results) => {
             products = results.data.map(item => {
               const codigoBarra = (item['codigo_barra'] || '').trim();        // Columna A
               const documentoTercero = (item['documento_tercero'] || '').trim();   // Columna D (puede venir vacía)
@@ -163,6 +194,28 @@ document.addEventListener('DOMContentLoaded', function () {
             globalUnitsScanned = 0;
             totalUnits = products.reduce((acc, p) => acc + (p.cantidad || 0), 0);
             products.forEach(p => { scannedUnits[p.codigo_barra] = 0; });
+
+            // ================= GUARDAR PLAN EN BD =================
+            try {
+              await fetch('https://exprecar.com/api/guardar_plan.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  proceso_id: proceso_id,
+                  items: products.map(p => ({
+                    codigo_base: p.codigo_barra,
+                    unidades: p.cantidad,
+                    ciudad: p.ciudad
+                  }))
+                })
+              });
+
+              console.log("Plan guardado correctamente");
+
+            } catch (e) {
+              console.error(e);
+              alert("El manifiesto no se pudo guardar en la base");
+            }
 
             updateScannedList();
             updateGlobalCounter();
