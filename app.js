@@ -148,6 +148,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const proceso_id = procesoData.proceso_id;
     console.log("Proceso creado:", proceso_id);
+    // 🔒 Guardar proceso activo para usarlo al enviar escaneos
+    localStorage.setItem('proceso_activo', String(proceso_id));
 
     const exportUrl = `https://docs.google.com/spreadsheets/d/${fileId}/export?format=csv`;
     fetch(exportUrl)
@@ -197,7 +199,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // ================= GUARDAR PLAN EN BD =================
             try {
-              await fetch('https://exprecar.com/api/guardar_plan.php', {
+              const respPlan = await fetch('https://exprecar.com/api/guardar_plan.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -209,6 +211,13 @@ document.addEventListener('DOMContentLoaded', function () {
                   }))
                 })
               });
+
+              const dataPlan = await respPlan.json();
+
+              if (!dataPlan.ok) {
+                alert("Error guardando el manifiesto");
+                return;
+              }
 
               console.log("Plan guardado correctamente");
 
@@ -380,6 +389,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!ok) return;
 
     localStorage.removeItem('scanProgress');
+    localStorage.removeItem('proceso_activo');
     products = [];
     scannedUnits = {};
     globalUnitsScanned = 0;
@@ -466,15 +476,18 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     });
 
+    // 🔒 Obtener proceso activo creado al cargar el CSV
+    const procesoActivo = localStorage.getItem('proceso_activo');
+
+    if (!procesoActivo) {
+      alert("No hay proceso activo. Debes cargar el informe primero.");
+      return;
+    }
+
     const payload = {
-      tipo: TIPO_FIJO,
-      placa: normalizarTexto(placa),
-      sede: normalizarTexto(sede),
-      remitente: remitente,
-      fecha_operativa: fecha,
+      proceso_id: Number(procesoActivo),
       unidades: unidades
     };
-
     const btn = document.getElementById('generar-reporte');
     const original = btn.textContent;
 
