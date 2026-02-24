@@ -530,3 +530,5 @@ document.getElementById('generar-reporte').addEventListener('click', async () =>
   }
 
 });
+
+}); // ✅ cierre final del DOMContentLoaded
