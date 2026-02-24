@@ -5,123 +5,141 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gestión de Unidades Escaneadas</title>
+
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+
   <!-- Íconos -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#cc414d">
+  <meta name="theme-color" content="#da2727e7">
 </head>
 
 <body>
+
   <div id="main-content">
+
     <div id="logo-exprecar" align="left">
       <img src="logoexprecar.svg" width="130" height="50" alt="logo">
     </div>
+
     <div>
       <img src="somos de aqui.png" width="120" height="120" alt="LOGO">
     </div>
-    <div>
-      <h1>Escaneo de Unidades</h1>
 
+    <div>
+      <h1 style="color:#da2727e7;">Escaneo de Unidades</h1>
+
+      <!-- Cliente cargado -->
       <div id="cliente-cargado"
-        style="margin: 10px auto; max-width: 600px; font-size: 1.1em; padding: 10px 15px; background-color: #e9f7ef; color: #2e7d32; border-left: 5px solid #2e7d32; border-radius: 5px; display: none;">
+        style="margin: 10px auto; max-width: 650px; padding: 12px 18px; background: #e9f7ef; color: #2e7d32; border-left: 6px solid #2e7d32; border-radius: 8px; display: none;">
         📦 Cliente cargado:
       </div>
 
-      <h2 id="global-counter">Unidades descargadas: 0 de 0 </h2>
+      <!-- Información del proceso activo -->
+      <div id="info-proceso"
+        style="margin: 15px auto; max-width: 650px; padding: 15px 20px; background: linear-gradient(135deg, #ffffff, #f8f8f8); color: #000; border-left: 6px solid #da2727e7; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); font-size: 0.95em; display: none;">
+      </div>
+
+      <h2 id="global-counter"
+        style="margin-top:15px; background:#000; color:white; padding:8px 15px; border-radius:6px; display:inline-block;">
+        Unidades descargadas: 0 de 0
+      </h2>
+
     </div>
   </div>
 
-  <!-- Seleccionar archivo (cliente) -->
+  <!-- Seleccionar archivo -->
   <select id="archivo-select">
     <option value="">Selecciona</option>
-    <option >-BUCARAMANGA-</option>
+
+    <option>-BUCARAMANGA-</option>
     <option value="1DY82Dx49ehXjKZIjaqOguDmw2RdStrn5FYWKMhKOpcs">Cucuta-Bucaramanga</option>
     <option value="1ABlzwMok8OtUalC8XHTFL23EuQqTnC0OmQF9IRMpWWc">Bogota-Bucaramanga</option>
     <option value="1dPcvhtF0CcS_PbkmMu89FYvi0kq6u69NAxvxnRZhPD4">Medellin-Bucaramanga</option>
     <option value="1EYco4I9lTHovBDaYUk8iZjKWbdbfLqFCOPPWa9a09Bo">Tercero-Bucaramanga</option>
     <option value="1A1j-b561LEONfbRHiHUt_-SemkKkGkbqL_jovrwlIYE">Tercero2-Bucaramanga</option>
-    <option >-BOGOTA-</option>
+
+    <option>-BOGOTA-</option>
     <option value="12ook3xyv4IhdKZQdVO4NxPAwWGSvezLyI7YDczTwJGQ">Bucaramanga-Bogota</option>
     <option value="1YNcUXti29P0Dy5CNgMtPa_B_WWmfxXZ9IFrujTt6JT8">Bucaramanga2-Bogota</option>
-    <option >-MEDELLIN-</option>
+
+    <option>-MEDELLIN-</option>
     <option value="1svOrId1IkJtRZRzsnO9AVjSgjIbtV61hTRLJZa6xnX8">Bucaramanga-Medellin</option>
     <option value="1wlfYnH06Oo1xs_QQGzKS6lJQ42xw8QuaehOzqw5BTTU">Bucaramanga2-Medellin</option>
-    <option >-INVENTARIO-</option>
+
+    <option>-INVENTARIO-</option>
     <option value="173pjvlxYv8DDeJf4RhJCKGV2Cc9wZfcOWBmools5_R0">INVENTARIO</option>
-    <!--<option >--</option>
-    <option value="1wlfYnH06Oo1xs_QQGzKS6lJQ42xw8QuaehOzqw5BTTU">Bucaramanga-Cucuta</option>
-    <option value="1wlfYnH06Oo1xs_QQGzKS6lJQ42xw8QuaehOzqw5BTTU">Bucaramanga2-Cucuta</option>-->
-
   </select>
-  <button id="cargar-desde-drive">Cargar informe</button>
 
-  <!-- Escaneo manual / pistola -->
+  <button id="cargar-desde-drive"
+    style="background:#da2727e7; color:white; border:none; padding:8px 14px; border-radius:6px; font-weight:bold; cursor:pointer;">
+    Cargar informe
+  </button>
+
+  <!-- Escaneo -->
   <input type="text" id="barcodeInput" placeholder="Escanea el código de barras aquí...">
   <button id="start-scanning">Iniciar Escaneo</button>
 
   <h2>Unidades Escaneadas</h2>
   <ul id="scanned-list"></ul>
 
-  <!-- Enviar (abre modal) -->
-  <button id="finalizar-descarga" class="btn-generar-reporte"
-    style="position: absolute; top: 10px; right: 10px; z-index: 1000;">
-    Enviar <i class="fas fa-paper-plane"></i>
+  <!-- Botón Enviar -->
+  <button id="finalizar-descarga"
+    style="position:absolute; top:15px; right:15px; background:#da2727e7; color:white; border:none; padding:10px 18px; border-radius:25px; font-weight:bold; cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,0.2); z-index:1000;">
+    <i class="fas fa-paper-plane"></i> Enviar
   </button>
 
   <button id="terminar-proceso">Terminar Proceso</button>
 
-  <!-- Cámara (opcional, se mantiene igual) -->
-  <div id="scanner-container" style="display: none;">
-    <div id="scanner-video" style="width: 100%; max-width: 600px; height: 400px;"></div>
+  <!-- Cámara -->
+  <div id="scanner-container" style="display:none;">
+    <div id="scanner-video" style="width:100%; max-width:600px; height:400px;"></div>
     <div id="focus-box"></div>
-    <button id="close-scanner" style="position: absolute; top: 10px; right: 10px; z-index: 10000;">
+    <button id="close-scanner"
+      style="position:absolute; top:10px; right:10px; z-index:10000;">
       Cerrar
     </button>
-    <h2 id="global-counter-scanner">Unidades descargadas: 0 de 0 </h2>
+    <h2 id="global-counter-scanner">Unidades descargadas: 0 de 0</h2>
   </div>
 
-  <!-- Feedback de escaneo -->
+  <!-- Feedback -->
   <div id="scan-result"
-    style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; background: rgba(0, 0, 0, 0.75); color: #fff; padding: 20px; border-radius: 50%;">
-    <span id="result-icon" style="font-size: 48px;"></span>
+    style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); display:none; background:rgba(0,0,0,0.75); color:#fff; padding:20px; border-radius:50%;">
+    <span id="result-icon" style="font-size:48px;"></span>
   </div>
 
-  <!-- Modal (placa, remitente, fecha; enviar a Sheets) -->
-  <div id="modal" class="modal" style="display: none;">
-    <div class="modal-content">
-      <h3>Información de la Descarga</h3>
-      <div class="sede-wrapper">
-        <label for="sede">Sede del descargue</label>
-        <select id="sede">
-          <option value="">Selecciona una sede...</option>
-          <option value="Bucaramanga">Bucaramanga</option>
-          <option value="Medellín">Medellín</option>
-          <option value="Bogotá">Bogotá</option>
-          <option value="Cúcuta">Cúcuta</option>          
-        </select>
+  <!-- Modal Confirmación -->
+  <div id="modal" class="modal" style="display:none;">
+    <div class="modal-content"
+      style="background:white; padding:25px; border-radius:10px; width:350px; box-shadow:0 8px 25px rgba(0,0,0,0.25);">
 
+      <h3 style="color:#da2727e7;">Confirmar Envío</h3>
+
+      <div class="sede-wrapper">
+        <label>Sede del descargue</label>
         <div id="sede-activa"></div>
       </div>
 
-
-      <input type="text" id="placa" placeholder="Placa de Vehículo">
-      <input type="text" id="remitente" placeholder="Tercero o Ruta">
       <input type="text" id="fecha" disabled>
-      <button id="generar-reporte" style="background-color: #4CAF50; color: white; margin-top: 10px;">
-        Enviar 
+
+      <button id="generar-reporte"
+        style="background:#da2727e7; color:white; margin-top:10px; border:none; padding:10px; border-radius:6px; font-weight:bold; width:100%;">
+        Confirmar Envío
       </button>
-      <button id="cerrar-modal" style="background-color: #cc414d; color: white; margin-top: 10px;">
+
+      <button id="cerrar-modal"
+        style="background:#000; color:white; margin-top:10px; border:none; padding:10px; border-radius:6px; width:100%;">
         Cerrar
       </button>
+
     </div>
   </div>
 
-  <!-- Librerías (PapaParse para CSV; html5-qrcode opcional). XLSX se elimina -->
+  <!-- Librerías -->
   <script src="https://cdn.jsdelivr.net/npm/html5-qrcode/minified/html5-qrcode.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-  <script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
   <script src="app.js"></script>
 
   <script>
@@ -133,6 +151,6 @@
       });
     }
   </script>
-</body>
 
+</body>
 </html>
