@@ -49,6 +49,29 @@ document.addEventListener('DOMContentLoaded', function () {
       .trim();
   }
 
+  function quitarCerosIzquierda(str) {
+  const s = String(str || '').trim();
+  // si es todo ceros, lo dejamos como "0"
+  const sin = s.replace(/^0+/, '');
+  return sin === '' ? '0' : sin;
+}
+
+function encontrarProductoPorCodigo(products, main) {
+  const mainTrim = String(main || '').trim();
+
+  // 1) match exacto
+  let p = products.find(x => (x.codigos_validos || []).includes(mainTrim));
+  if (p) return p;
+
+  // 2) match sin ceros (solo para comparar)
+  const mainNoCeros = quitarCerosIzquierda(mainTrim);
+
+  p = products.find(x =>
+    (x.codigos_validos || []).some(v => quitarCerosIzquierda(v) === mainNoCeros)
+  );
+  return p || null;
+}
+
   // ===== Audio =====
   function initializeAudioContext() {
     if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -305,12 +328,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const parts = rawCode.split('-');
 
     let main = (parts[0] || '').trim();
-    main = main.replace(/^0+/, ''); // sin ceros iniciales para buscar en codigos_validos
+    const p = encontrarProductoPorCodigo(products, main);
     const sub = (parts[1] || '').trim();
     const now = obtenerHoraFormateada();
 
-    // Buscar producto solo por el "main" sin ceros iniciales
-    const p = products.find(x => x.codigos_validos.includes(main));
+    
 
     if (p) {
       const cur = scannedUnits[p.codigo_barra] || 0;
