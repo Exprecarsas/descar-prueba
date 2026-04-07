@@ -50,27 +50,27 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function quitarCerosIzquierda(str) {
-  const s = String(str || '').trim();
-  // si es todo ceros, lo dejamos como "0"
-  const sin = s.replace(/^0+/, '');
-  return sin === '' ? '0' : sin;
-}
+    const s = String(str || '').trim();
+    // si es todo ceros, lo dejamos como "0"
+    const sin = s.replace(/^0+/, '');
+    return sin === '' ? '0' : sin;
+  }
 
-function encontrarProductoPorCodigo(products, main) {
-  const mainTrim = String(main || '').trim();
+  function encontrarProductoPorCodigo(products, main) {
+    const mainTrim = String(main || '').trim();
 
-  // 1) match exacto
-  let p = products.find(x => (x.codigos_validos || []).includes(mainTrim));
-  if (p) return p;
+    // 1) match exacto
+    let p = products.find(x => (x.codigos_validos || []).includes(mainTrim));
+    if (p) return p;
 
-  // 2) match sin ceros (solo para comparar)
-  const mainNoCeros = quitarCerosIzquierda(mainTrim);
+    // 2) match sin ceros (solo para comparar)
+    const mainNoCeros = quitarCerosIzquierda(mainTrim);
 
-  p = products.find(x =>
-    (x.codigos_validos || []).some(v => quitarCerosIzquierda(v) === mainNoCeros)
-  );
-  return p || null;
-}
+    p = products.find(x =>
+      (x.codigos_validos || []).some(v => quitarCerosIzquierda(v) === mainNoCeros)
+    );
+    return p || null;
+  }
 
   // ===== Audio =====
   function initializeAudioContext() {
@@ -332,7 +332,7 @@ function encontrarProductoPorCodigo(products, main) {
     const sub = (parts[1] || '').trim();
     const now = obtenerHoraFormateada();
 
-    
+
 
     if (p) {
       const cur = scannedUnits[p.codigo_barra] || 0;
@@ -461,96 +461,109 @@ function encontrarProductoPorCodigo(products, main) {
     alert('Proceso finalizado. Los datos se han eliminado.');
   });
 
-// ===== Enviar api =====
-document.getElementById('generar-reporte').addEventListener('click', async () => {
+  // ===== Enviar api =====
+  document.getElementById('generar-reporte').addEventListener('click', async () => {
 
-  if (enviandoProceso) {
-    alert("El proceso ya se está enviando...");
-    return;
-  }
+    if (enviandoProceso) {
+      alert("El proceso ya se está enviando...");
+      return;
+    }
 
-  const firmaActual = generarFirmaDatos();
+    const firmaActual = generarFirmaDatos();
 
-  if (firmaUltimoEnvio && firmaActual === firmaUltimoEnvio) {
-    alert("Este descargue ya fue enviado y no tiene cambios.");
-    return;
-  }
+    if (firmaUltimoEnvio && firmaActual === firmaUltimoEnvio) {
+      alert("Este descargue ya fue enviado y no tiene cambios.");
+      return;
+    }
 
-  // 🔒 Obtener proceso activo creado al cargar el CSV
-  const procesoActivo = localStorage.getItem('proceso_activo');
+    // 🔒 Obtener proceso activo creado al cargar el CSV
+    const procesoActivo = localStorage.getItem('proceso_activo');
 
-  if (!procesoActivo) {
-    alert("No hay proceso activo. Debes cargar el informe primero.");
-    return;
-  }
+    if (!procesoActivo) {
+      alert("No hay proceso activo. Debes cargar el informe primero.");
+      return;
+    }
 
-  // ✅ permitimos enviar aunque haya solo incorrectos
-  if (!codigosCorrectos.length && !codigosIncorrectos.length) {
-    alert("No hay códigos para enviar.");
-    return;
-  }
+    // ✅ permitimos enviar aunque haya solo incorrectos
+    if (!codigosCorrectos.length && !codigosIncorrectos.length) {
+      alert("No hay códigos para enviar.");
+      return;
+    }
 
-  // ===== ARMAR UNIDADES (CORRECTOS + INCORRECTOS) =====
-  const unidades = [];
+    // ===== ARMAR UNIDADES (CORRECTOS + INCORRECTOS) =====
+    const unidades = [];
 
-  codigosCorrectos.forEach(c => {
-    unidades.push({
-      codigo: c.codigo,
-      hora: c.hora,
-      estado: "CORRECTO"
+    codigosCorrectos.forEach(c => {
+      unidades.push({
+        codigo: c.codigo,
+        hora: c.hora,
+        estado: "CORRECTO"
+      });
     });
+
+    codigosIncorrectos.forEach(c => {
+      unidades.push({
+        codigo: c.codigo,
+        hora: c.hora,
+        estado: "NO_PLANILLADO"
+      });
+    });
+
+    const payload = {
+      proceso_id: Number(procesoActivo),
+      unidades: unidades
+    };
+
+    const btn = document.getElementById('generar-reporte');
+    const original = btn.textContent;
+
+    try {
+      enviandoProceso = true;
+      btn.disabled = true;
+      btn.textContent = 'Enviando...';
+
+      const resp = await fetch('https://exprecar.com/api/guardar_proceso.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error);
+
+      firmaUltimoEnvio = firmaActual;
+
+      const insertadas = Number(data.insertadas || 0);
+      const omitidas = Number(data.omitidas || 0);
+      const mensaje = data.mensaje || '';
+      const procesoExistente = data.proceso_existente;
+
+      let texto = `${mensaje || 'Descargue guardado correctamente'}\n\n`;
+
+      texto += `✔️ Insertadas: ${insertadas}\n`;
+      texto += `⏭️ Omitidas: ${omitidas}\n`;
+      texto += `📦 Correctos escaneados: ${codigosCorrectos.length}\n`;
+      texto += `❌ Incorrectos: ${codigosIncorrectos.length}\n`;
+
+      if (procesoExistente) {
+        texto += `\n🔁 Modo: Reenvío / proceso existente`;
+      } else {
+        texto += `\n🆕 Modo: Proceso nuevo`;
+      }
+
+      alert(texto);
+
+      document.getElementById('modal').style.display = 'none';
+
+    } catch (err) {
+      console.error(err);
+      alert("No se pudo guardar el proceso en la base de datos.");
+    } finally {
+      enviandoProceso = false;
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+
   });
-
-  codigosIncorrectos.forEach(c => {
-    unidades.push({
-      codigo: c.codigo,
-      hora: c.hora,
-      estado: "NO_PLANILLADO"
-    });
-  });
-
-  const payload = {
-    proceso_id: Number(procesoActivo),
-    unidades: unidades
-  };
-
-  const btn = document.getElementById('generar-reporte');
-  const original = btn.textContent;
-
-  try {
-    enviandoProceso = true;
-    btn.disabled = true;
-    btn.textContent = 'Enviando...';
-
-    const resp = await fetch('https://exprecar.com/api/guardar_proceso.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await resp.json();
-    if (!data.ok) throw new Error(data.error);
-
-    firmaUltimoEnvio = firmaActual;
-
-    alert(
-      `Descargue guardado correctamente\n` +
-      `Correctos: ${codigosCorrectos.length}\n` +
-      `Incorrectos: ${codigosIncorrectos.length}\n` +
-      `Total enviados: ${data.total_unidades}`
-    );
-
-    document.getElementById('modal').style.display = 'none';
-
-  } catch (err) {
-    console.error(err);
-    alert("No se pudo guardar el proceso en la base de datos.");
-  } finally {
-    enviandoProceso = false;
-    btn.disabled = false;
-    btn.textContent = original;
-  }
-
-});
 
 }); // ✅ cierre final del DOMContentLoaded
